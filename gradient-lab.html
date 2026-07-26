@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Campo de Cor — Gerador local</title>
+  <style>
+    :root {
+      --ink: #1a1a18;
+      --paper: #f4f2eb;
+      --line: #1a1a18;
+      --muted: #77746c;
+      --signal: #ff5c35;
+      --panel: #ece9df;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(26, 26, 24, .035) 1px, transparent 1px) 0 0 / 48px 48px,
+        linear-gradient(rgba(26, 26, 24, .035) 1px, transparent 1px) 0 0 / 48px 48px,
+        var(--paper);
+      font-family: "Courier New", Courier, monospace;
+    }
+
+    button, input, select { font: inherit; }
+
+    .page { max-width: 1280px; margin: 0 auto; padding: 28px 24px 44px; }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 18px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow, .status, label, .hint, .footer-note { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+    .eyebrow { color: var(--signal); font-weight: bold; margin: 0 0 9px; }
+    h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(42px, 7vw, 84px); line-height: .78; letter-spacing: -.06em; margin: 0; font-weight: 400; }
+    .header-side { max-width: 260px; margin: 4px 0 0; font-size: 13px; line-height: 1.45; }
+
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 365px; gap: 22px; align-items: start; }
+    .preview-panel { min-width: 0; }
+    .canvas-wrap { position: relative; border: 2px solid var(--line); padding: 8px; background: #fff; aspect-ratio: 1; }
+    canvas { display: block; width: 100%; height: 100%; background: #ddd; }
+    .canvas-tag { position: absolute; left: 20px; top: 20px; padding: 5px 7px; color: #fff; background: rgba(0, 0, 0, .7); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+    .caption { display: flex; justify-content: space-between; gap: 10px; margin: 10px 2px 0; color: var(--muted); }
+
+    .controls { border: 2px solid var(--line); background: var(--panel); }
+    .controls-title { padding: 13px 14px 11px; border-bottom: 2px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+    .controls-title strong { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+    .seed { color: var(--muted); font-size: 10px; }
+    .section { padding: 14px; border-bottom: 1px solid rgba(26, 26, 24, .45); }
+    .section:last-child { border-bottom: 0; }
+    label { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-weight: bold; margin-bottom: 10px; }
+    output { color: var(--signal); }
+
+    .colors { display: grid; gap: 7px; }
+    .color-row { display: grid; grid-template-columns: 32px 1fr 28px; gap: 7px; align-items: center; }
+    input[type="color"] { width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); background: transparent; cursor: pointer; }
+    input[type="text"], select { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 0; padding: 8px; background: #fdfcf8; color: var(--ink); font-size: 13px; }
+    .remove { width: 28px; height: 32px; padding: 0; border: 1px solid var(--line); background: transparent; cursor: pointer; font-size: 18px; line-height: 1; }
+    .remove:hover { background: var(--signal); color: white; }
+    .mini-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+    input[type="range"] { width: 100%; accent-color: var(--signal); cursor: pointer; }
+    .range-scale { display: flex; justify-content: space-between; color: var(--muted); margin-top: 2px; font-size: 10px; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    button { border: 1px solid var(--line); border-radius: 0; padding: 10px 12px; background: #fdfcf8; color: var(--ink); cursor: pointer; font-size: 12px; font-weight: bold; letter-spacing: .06em; text-transform: uppercase; }
+    button:hover { background: var(--ink); color: var(--paper); }
+    button.primary { background: var(--signal); color: #fff; border-color: var(--signal); }
+    button.primary:hover { background: #d83d1b; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .export-row { display: grid; grid-template-columns: 1fr auto; gap: 9px; }
+    .status { min-height: 15px; color: var(--muted); line-height: 1.35; margin: 10px 0 0; }
+    .status.error { color: #ae2012; }
+    .footer-note { margin: 21px 0 0; color: var(--muted); line-height: 1.55; }
+
+    @media (max-width: 850px) {
+      .workspace { grid-template-columns: 1fr; }
+      .controls { max-width: 650px; }
+    }
+    @media (max-width: 560px) {
+      .page { padding: 20px 14px 30px; }
+      header { display: block; }
+      .header-side { margin-top: 22px; }
+      .export-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <p class="eyebrow">Ferramenta local · sem conta · sem rede</p>
+        <h1>Campo de Cor</h1>
+      </div>
+      <p class="header-side">Misture cores, distorção e grão. O preview é leve; o PNG pode sair em resolução grande.</p>
+    </header>
+
+    <section class="workspace" aria-label="Gerador de gradiente">
+      <div class="preview-panel">
+        <div class="canvas-wrap">
+          <canvas id="preview" width="900" height="900" aria-label="Preview do gradiente"></canvas>
+          <span class="canvas-tag">Preview</span>
+        </div>
+        <div class="caption hint"><span>Espaço: nova composição</span><span id="previewInfo">900 × 900</span></div>
+      </div>
+
+      <aside class="controls">
+        <div class="controls-title">
+          <strong>Parâmetros</strong>
+          <span class="seed" id="seedLabel">SEED 000000</span>
+        </div>
+
+        <div class="section">
+          <label>Cores <span id="colorCount">5 cores</span></label>
+          <div id="colors" class="colors"></div>
+          <div class="mini-actions"><button type="button" id="addColor">+ Cor</button><button type="button" id="randomPalette">Paleta aleatória</button></div>
+        </div>
+
+        <div class="section">
+          <label for="chaos">Distorção <output id="chaosValue">24%</output></label>
+          <input id="chaos" type="range" min="0" max="100" value="24">
+          <div class="range-scale"><span>Suave</span><span>Viva</span></div>
+        </div>
+
+        <div class="section">
+          <label for="grain">Grão <output id="grainValue">12%</output></label>
+          <input id="grain" type="range" min="0" max="100" value="12">
+          <div class="range-scale"><span>Limpo</span><span>Texturado</span></div>
+        </div>
+
+        <div class="section">
+          <div class="actions"><button type="button" id="newGradient">Nova composição</button><button type="button" id="copyLink">Copiar ajustes</button></div>
+        </div>
+
+        <div class="section">
+          <label for="size">Exportar PNG</label>
+          <div class="export-row"><select id="size" aria-label="Tamanho da exportação"><option value="2000">2.000 × 2.000 px</option><option value="3000">3.000 × 3.000 px</option><option value="5000">5.000 × 5.000 px</option></select><button type="button" class="primary" id="download">Baixar PNG</button></div>
+          <p id="status" class="status" role="status">Tudo fica no seu navegador.</p>
+        </div>
+      </aside>
+    </section>
+    <p class="footer-note">Dica: a exportação em 5.000 px pode usar bastante memória e levar alguns segundos. Se o navegador travar, exporte em 3.000 px.</p>
+  </main>
+
+  <script>
+    (() => {
+      const $ = (selector) => document.querySelector(selector);
+      const preview = $('#preview');
+      const previewCtx = preview.getContext('2d', { alpha: false });
+      const colorsNode = $('#colors');
+      const chaosNode = $('#chaos');
+      const grainNode = $('#grain');
+      const statusNode = $('#status');
+      const paletteBank = [
+        ['#ed625d', '#42b6c6', '#f79f88', '#b2dfe6', '#03232d'],
+        ['#ef5b4d', '#ffb627', '#f7fff7', '#6c63ff', '#1d1e2c'],
+        ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'],
+        ['#050505', '#495057', '#d0ebff', '#ffe8cc', '#e64980'],
+        ['#44355b', '#31263e', '#dda77b', '#e3b5a4', '#f8f4e3'],
+        ['#0a3d62', '#3c6382', '#82ccdd', '#f6b93b', '#eb2f06']
+      ];
+
+      let state = {
+        colors: ['#ed625d', '#42b6c6', '#f79f88', '#b2dfe6', '#03232d'],
+        chaos: 24,
+        grain: 12,
+        seed: Math.floor(Math.random() * 0xffffffff) >>> 0
+      };
+      let previewFrame;
+
+      function seededRandom(seed) {
+        let value = seed >>> 0;
+        return () => {
+          value += 0x6D2B79F5;
+          let t = value;
+          t = Math.imul(t ^ t >>> 15, t | 1);
+          t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+          return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        };
+      }
+
+      function normaliseHex(value) {
+        const hex = value.trim();
+        return /^#[0-9a-fA-F]{6}$/.test(hex) ? hex.toLowerCase() : null;
+      }
+
+      function hexToRgb(hex) {
+        const parsed = parseInt(hex.slice(1), 16);
+        return [(parsed >> 16) & 255, (parsed >> 8) & 255, parsed & 255];
+      }
+
+      function rgba(hex, alpha) {
+        const [r, g, b] = hexToRgb(hex);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+
+      function renderColorRows() {
+        colorsNode.replaceChildren();
+        state.colors.forEach((color, index) => {
+          const row = document.createElement('div');
+          row.className = 'color-row';
+          const picker = document.createElement('input');
+          picker.type = 'color'; picker.value = color; picker.title = `Escolher cor ${index + 1}`;
+          const input = document.createElement('input');
+          input.type = 'text'; input.value = color; input.spellcheck = false; input.setAttribute('aria-label', `Código da cor ${index + 1}`);
+          const remove = document.createElement('button');
+          remove.type = 'button'; remove.className = 'remove'; remove.textContent = '×'; remove.title = 'Remover cor'; remove.disabled = state.colors.length <= 2;
+          picker.addEventListener('input', () => { state.colors[index] = picker.value; input.value = picker.value; schedulePreview(); });
+          input.addEventListener('change', () => {
+            const hex = normaliseHex(input.value);
+            if (hex) { state.colors[index] = hex; picker.value = hex; input.value = hex; schedulePreview(); }
+            else { input.value = state.colors[index]; showStatus('Use uma cor no formato #aabbcc.', true); }
+          });
+          remove.addEventListener('click', () => { state.colors.splice(index, 1); renderColorRows(); schedulePreview(); });
+          row.append(picker, input, remove);
+          colorsNode.append(row);
+        });
+        $('#colorCount').textContent = `${state.colors.length} ${state.colors.length === 1 ? 'cor' : 'cores'}`;
+      }
+
+      function drawNoise(ctx, width, height, amount, random) {
+        if (amount <= 0) return;
+        const tileSize = Math.min(640, Math.max(128, Math.round(Math.min(width, height) / 5)));
+        const texture = document.createElement('canvas');
+        texture.width = texture.height = tileSize;
+        const textureCtx = texture.getContext('2d');
+        const image = textureCtx.createImageData(tileSize, tileSize);
+        const alpha = Math.round(24 * (amount / 100));
+        for (let i = 0; i < image.data.length; i += 4) {
+          const tone = random() > 0.5 ? 255 : 0;
+          image.data[i] = tone; image.data[i + 1] = tone; image.data[i + 2] = tone; image.data[i + 3] = alpha;
+        }
+        textureCtx.putImageData(image, 0, 0);
+        const pattern = ctx.createPattern(texture, 'repeat');
+        ctx.fillStyle = pattern;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      function renderCanvas(ctx, width, height) {
+        const random = seededRandom(state.seed);
+        const chaos = state.chaos / 100;
+        const size = Math.max(width, height);
+        const baseColor = state.colors[Math.floor(random() * state.colors.length)];
+        ctx.save();
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+
+        // Each color receives a few oversized soft fields. No pixel-by-pixel gradient calculation is needed.
+        state.colors.forEach((color, colorIndex) => {
+          const passes = 2 + (chaos > .55 ? 1 : 0);
+          for (let pass = 0; pass < passes; pass++) {
+            const spread = size * (.48 + random() * .34 + chaos * .2);
+            const x = width * (.08 + random() * .84) + (random() - .5) * width * chaos * .32;
+            const y = height * (.08 + random() * .84) + (random() - .5) * height * chaos * .32;
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, spread);
+            const opacity = .54 + chaos * .28 + (colorIndex === 0 ? .1 : 0);
+            gradient.addColorStop(0, rgba(color, opacity));
+            gradient.addColorStop(.34, rgba(color, opacity * .74));
+            gradient.addColorStop(.72, rgba(color, opacity * .22));
+            gradient.addColorStop(1, rgba(color, 0));
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+          }
+        });
+
+        // A faint final wash unifies the fields without erasing their colors.
+        const wash = ctx.createLinearGradient(0, 0, width, height);
+        wash.addColorStop(0, rgba(state.colors[0], .10));
+        wash.addColorStop(.5, 'rgba(255,255,255,0)');
+        wash.addColorStop(1, rgba(state.colors[state.colors.length - 1], .12));
+        ctx.fillStyle = wash;
+        ctx.fillRect(0, 0, width, height);
+        drawNoise(ctx, width, height, state.grain, random);
+        ctx.restore();
+      }
+
+      function updateLabels() {
+        $('#chaosValue').value = `${state.chaos}%`;
+        $('#grainValue').value = `${state.grain}%`;
+        $('#seedLabel').textContent = `SEED ${state.seed.toString(16).toUpperCase().padStart(8, '0')}`;
+      }
+
+      function renderPreview() { renderCanvas(previewCtx, preview.width, preview.height); updateLabels(); }
+      function schedulePreview() {
+        cancelAnimationFrame(previewFrame);
+        previewFrame = requestAnimationFrame(renderPreview);
+      }
+
+      function showStatus(message, error = false) {
+        statusNode.textContent = message;
+        statusNode.classList.toggle('error', error);
+      }
+
+      function paramsUrl() {
+        const params = new URLSearchParams({ colors: state.colors.join('-'), chaos: state.chaos, grain: state.grain, seed: state.seed });
+        return `${location.href.split('?')[0]}?${params}`;
+      }
+
+      function readUrl() {
+        const params = new URLSearchParams(location.search);
+        const colors = (params.get('colors') || '').split('-').map(normaliseHex).filter(Boolean);
+        if (colors.length >= 2) state.colors = colors.slice(0, 9);
+        const chaos = Number(params.get('chaos')); const grain = Number(params.get('grain')); const seed = Number(params.get('seed'));
+        if (params.has('chaos') && Number.isFinite(chaos)) state.chaos = Math.max(0, Math.min(100, Math.round(chaos)));
+        if (params.has('grain') && Number.isFinite(grain)) state.grain = Math.max(0, Math.min(100, Math.round(grain)));
+        if (params.has('seed') && Number.isFinite(seed)) state.seed = seed >>> 0;
+      }
+
+      async function download() {
+        const size = Number($('#size').value);
+        const button = $('#download');
+        button.disabled = true;
+        showStatus(`Gerando PNG de ${size.toLocaleString('pt-BR')} × ${size.toLocaleString('pt-BR')} px…`);
+        await new Promise(requestAnimationFrame);
+        try {
+          const output = document.createElement('canvas');
+          output.width = output.height = size;
+          const outputCtx = output.getContext('2d', { alpha: false });
+          renderCanvas(outputCtx, size, size);
+          const blob = await new Promise((resolve) => output.toBlob(resolve, 'image/png'));
+          if (!blob) throw new Error('O navegador não conseguiu criar o PNG.');
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url; link.download = `campo-de-cor-${size}px-${state.seed.toString(16)}.png`;
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          showStatus('PNG baixado.');
+        } catch (error) {
+          showStatus(`Não foi possível exportar: ${error.message}`, true);
+        } finally { button.disabled = false; }
+      }
+
+      $('#addColor').addEventListener('click', () => {
+        if (state.colors.length >= 9) return showStatus('Máximo de 9 cores.', true);
+        state.colors.push('#ffffff'); renderColorRows(); schedulePreview();
+      });
+      $('#randomPalette').addEventListener('click', () => {
+        state.colors = [...paletteBank[Math.floor(Math.random() * paletteBank.length)]];
+        state.seed = Math.floor(Math.random() * 0xffffffff) >>> 0; renderColorRows(); schedulePreview();
+      });
+      chaosNode.addEventListener('input', () => { state.chaos = Number(chaosNode.value); schedulePreview(); });
+      grainNode.addEventListener('input', () => { state.grain = Number(grainNode.value); schedulePreview(); });
+      $('#newGradient').addEventListener('click', () => { state.seed = Math.floor(Math.random() * 0xffffffff) >>> 0; schedulePreview(); });
+      $('#copyLink').addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(paramsUrl()); showStatus('Ajustes copiados como URL.'); }
+        catch { showStatus('Não foi possível copiar automaticamente. Abra o arquivo via navegador e tente novamente.', true); }
+      });
+      $('#download').addEventListener('click', download);
+      window.addEventListener('keydown', (event) => {
+        if (event.code === 'Space' && !/INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)) { event.preventDefault(); state.seed = Math.floor(Math.random() * 0xffffffff) >>> 0; schedulePreview(); }
+      });
+
+      readUrl();
+      chaosNode.value = state.chaos; grainNode.value = state.grain;
+      renderColorRows(); renderPreview();
+    })();
+  </script>
+</body>
+</html>
